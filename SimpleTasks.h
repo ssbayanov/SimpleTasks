@@ -2,15 +2,16 @@
 #define TASKS_H
 
 struct SimpleTask
-{
+{    
     unsigned long _delay;
     unsigned long _nextCall;
     unsigned long _count;
     unsigned long _counter;
     void (*_callback)();
-    int _taskID;
+    uint8_t _taskID;
     bool _isOnce;
-    bool _isCome;
+    bool _isCame;
+    bool _isActive;
     SimpleTask *next;
 };
 
@@ -22,152 +23,186 @@ public:
     {
         first = NULL;
         last = NULL;
+        count = 0;
     }
 
+/**
+ * Check tasks
+ **/
     void run()
     {
-        SimpleTask *tmp = first;
-        while (tmp)
+        SimpleTask *task = first;
+        while (task)
         {
-            bool removed = false;
-            unsigned long time = millis();
-            if (time > tmp->_nextCall)
+            // If task is active
+            if(task->_isActive)
             {
-                tmp->_nextCall = tmp->_delay + tmp->_nextCall;
-                tmp->_isCome = true;
-                tmp->_counter++;
-                if (tmp->_callback)
+                // Get current time
+                unsigned long time = millis();
+
+                // If current time > time of next call
+                if (time > task->_nextCall)
                 {
-                    tmp->_callback();
-                    if (tmp->_count > 0)
-                        if (tmp->_counter >= tmp->_count)
+                    // Calc time of next call
+                    task->_nextCall = task->_delay + task->_nextCall;
+                    task->_isCame = true;                    
+
+                    // If task have callback, call it
+                    if (task->_callback)
+                    {
+                        task->_callback(); 
+                        // If task have count increse counter and disabel if counter over count
+                        // For task withot callback counter increse after check isCame
+                        if (task->_count > 0)
                         {
-                            tmp = remove(tmp->_taskID);
-                            removed = true;
-                        }
+                            task->_counter++;
+                            if (task->_counter >= task->_count)
+                            {
+                                disable(task->_taskID);
+                            }
+                        }                       
+                    }
+
+                    
                 }
             }
-            if (tmp && !removed)
-                tmp = tmp->next;
+            // Get next teask
+            task = task->next;            
         }
     }
+
     /**
      * Remove element from list and returned previos elemet
     **/
-    SimpleTask *remove(int taskID)
+    void remove(uint8_t taskID)
     {
-        SimpleTask *tmp = first;
-        if(tmp)
-            if (tmp->_taskID == taskID)
+        SimpleTask *task = first;
+        if(task)
+        // If remove first task
+            if (task->_taskID == taskID)
             { 
-                if (tmp->next)
+                if (task->next)
                 {
-                    first = tmp->next;
-                    delete tmp;
-                    return first;
+                    first = task->next;
+                    delete task;
+                    return;
                 }
                 else
                 {
                     first = NULL;
                     last = NULL;
-                    delete tmp;
-                    return NULL;
+                    delete task;
+                    return;
                 }
             }
-        while (tmp)
+        while (task)
         {
-            if (tmp->next)
+            if (task->next)
             {
-                if (tmp->next->_taskID == taskID)
+                if (task->next->_taskID == taskID)
                 {
-                    SimpleTask *deleting = tmp->next;
-                    tmp->next = tmp->next->next;
+                    SimpleTask *deleting = task->next;
+                    task->next = task->next->next;
                     if (deleting == last)
                     {
-                        last = tmp;
+                        last = task;
                     }
                     delete deleting;
-                    return tmp->next;
+                    return;
                 }
             }
         }
     }
 
-    SimpleTask *add(int taskID, unsigned long delayTask, void (*callback)() = NULL, unsigned long count = 0)
+/**
+ * Add task
+ * Return ID of task
+**/
+    uint8_t add(unsigned long delayTask, void (*callback)() = NULL, unsigned long count = 0)
     {
-        if (getTask(taskID))
-        {
-            Serial.println("Task [" + taskID + "] already exist");
-            return NULL;
-        }
 
-        SimpleTask *t = new SimpleTask;
-        t->_taskID = taskID;
-        t->_delay = delayTask;
-        t->_callback = callback;
-        t->_nextCall = millis() + delayTask;
-        t->_isCome = false;
-        t->_count = count;
-        t->_counter = 0;
-        t->next = NULL;
+        SimpleTask *task = new SimpleTask;
+        task->_taskID = count++;
+        task->_delay = delayTask;
+        task->_callback = callback;
+        task->_nextCall = millis() + delayTask;
+        task->_isCame = false;
+        task->_count = count;
+        task->_counter = 0;
+        task->_isActive = true;
+        task->next = NULL;
 
         if (first == NULL)
         {
-            first = t;
+            first = task;
         }
         else
         {
-            last->next = t;
+            last->next = task;
         }
-        last = t;
-        return t;
+        last = task;
+        return task->_taskID;
     }
 
-    SimpleTask *getTask(int taskID)
-    {
-        SimpleTask *tmp = first;
-        while (tmp)
-        {
-            if (tmp->_taskID == taskID)
-            {
-                return tmp;
-            }
 
-            tmp = tmp->next;
-        }
-        return NULL;
-    }
-
-    bool isCome(int taskID)
+    bool isCame(uint8_t taskID)
     {
-        SimpleTask *t = getTask(taskID);
-        if (t)
+        SimpleTask *task = getTask(taskID);
+        if (task)
         {
-            if (t->_isCome)
+            if (task->_isCame)
             {
-                t->_isCome = false;
-                if (t->_count > 0)
-                    if (t->_counter >= t->_count)
+                task->_isCame = false;
+                if (task->_count > 0 && !task->_callback)
+                    if (task->_counter >= task->_count)
                     {
-                        remove(t->_taskID);
+                        disable(task->_taskID);
                     }
                 return true;
             }
         }
-        else
-        {
-            Serial.println("NO TASK \"" + taskName + "\"");
-        }
-
         return false;
     }
 
+    void disable(uint8_t taskID)
+    {
+        SimpleTask *t = getTask(taskID);
+        if(t) {
+            t->_isActive = false;
+        }
+    }
+
+    void enable(uint8_t taskID)
+    {
+        SimpleTask *task = getTask(taskID);
+        if(task) {
+            task->_isActive = true;
+            task->_counter = 0;
+        }
+    }
+
 private:
+    SimpleTask *getTask(uint8_t taskID)
+    {
+        SimpleTask *task = first;
+        while (task)
+        {
+            if (task->_taskID == taskID)
+            {
+                return task;
+            }
+
+            task = task->next;
+        }
+        return NULL;
+    }
+
     SimpleTask *first;
     SimpleTask *last;
+    int count;
 };
 
-SimpleTasks tasks;
+//SimpleTasks tasks;
 
 #endif
 //TASKS_H
