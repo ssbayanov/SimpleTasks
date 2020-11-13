@@ -8,6 +8,7 @@ struct SimpleTask
     unsigned long _count;
     unsigned long _counter;
     void (*_callback)();
+    void (*_stopCallback)();
     uint8_t _taskID;
     bool _isOnce;
     bool _isCame;
@@ -66,13 +67,25 @@ public:
                     
                 }
             }
-            // Get next teask
+            // Get next task
             task = task->next;            
         }
     }
 
     /**
-     * Remove element from list and returned previos elemet
+     * Set callback function when task is diabled by user or end of counts
+     * stopCallback is function called by disabling
+     **/
+    void setStopCallBack(uint8_t taskID, void (*stopCallback)())
+    {
+        SimpleTask *t = getTask(taskID);
+        if(t) {
+            t->_stopCallback = stopCallback;
+        }
+    }
+
+    /**
+     * Remove element from list
     **/
     void remove(uint8_t taskID)
     {
@@ -115,7 +128,8 @@ public:
     }
 
 /**
- * Add task
+ * Add task to task list.
+ * count is count of repeats. After end task disabled.
  * Return ID of task
 **/
     uint8_t add(unsigned long delayTask, void (*callback)() = NULL, unsigned long count = 0)
@@ -125,6 +139,7 @@ public:
         task->_taskID = count++;
         task->_delay = delayTask;
         task->_callback = callback;
+        task->_stopCallback = NULL;
         task->_nextCall = millis() + delayTask;
         task->_isCame = false;
         task->_count = count;
@@ -164,11 +179,39 @@ public:
         return false;
     }
 
+    bool isDisabled(uint8_t taskID)
+    {
+        SimpleTask *t = getTask(taskID);
+        if(t) {
+            return !t->_isActive;
+        }
+    }
+
     void disable(uint8_t taskID)
     {
         SimpleTask *t = getTask(taskID);
         if(t) {
             t->_isActive = false;
+            if(t->_stopCallback != NULL)
+            {
+                t->_stopCallback();
+            }
+        }
+    }
+
+    void disableWOCallback(uint8_t taskID)
+    {
+        SimpleTask *t = getTask(taskID);
+        if(t) {
+            t->_isActive = false;
+        }
+    }
+
+    bool isEnabled(uint8_t taskID)
+    {
+        SimpleTask *t = getTask(taskID);
+        if(t) {
+            return t->_isActive;
         }
     }
 
