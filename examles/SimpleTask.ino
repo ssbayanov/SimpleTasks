@@ -1,6 +1,6 @@
 #include <SimpleTasks.h>
 
-SimpleTask tasks;
+SimpleTasks tasks;
 
 #define LED_PIN 13
 

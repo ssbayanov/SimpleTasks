@@ -76,7 +76,7 @@ public:
      * Set callback function when task is diabled by user or end of counts
      * stopCallback is function called by disabling
      **/
-    void setStopCallBack(uint8_t taskID, void (*stopCallback)())
+    void setStopCallback(uint8_t taskID, void (*stopCallback)())
     {
         SimpleTask *t = getTask(taskID);
         if(t) {
