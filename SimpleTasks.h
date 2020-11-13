@@ -42,14 +42,14 @@ public:
                 unsigned long time = millis();
 
                 // If current time > time of next call
-                if (time > task->_nextCall)
+                if (time >= task->_nextCall)
                 {
                     // Calc time of next call
                     task->_nextCall = task->_delay + task->_nextCall;
                     task->_isCame = true;                    
 
                     // If task have callback, call it
-                    if (task->_callback)
+                    if (task->_callback != NULL)
                     {
                         task->_callback(); 
                         // If task have count increse counter and disabel if counter over count
@@ -136,7 +136,7 @@ public:
     {
 
         SimpleTask *task = new SimpleTask;
-        task->_taskID = count++;
+        task->_taskID = this->count++;
         task->_delay = delayTask;
         task->_callback = callback;
         task->_stopCallback = NULL;
@@ -168,11 +168,14 @@ public:
             if (task->_isCame)
             {
                 task->_isCame = false;
-                if (task->_count > 0 && !task->_callback)
+                if (task->_count > 0 && task->_callback != NULL)
+                {
+                    task->_counter++;
                     if (task->_counter >= task->_count)
                     {
                         disable(task->_taskID);
                     }
+                }
                 return true;
             }
         }
@@ -185,6 +188,7 @@ public:
         if(t) {
             return !t->_isActive;
         }
+        return true;
     }
 
     void disable(uint8_t taskID)
@@ -213,6 +217,7 @@ public:
         if(t) {
             return t->_isActive;
         }
+        return false;
     }
 
     void enable(uint8_t taskID)
@@ -220,6 +225,7 @@ public:
         SimpleTask *task = getTask(taskID);
         if(task) {
             task->_isActive = true;
+            task->_nextCall = millis() + task->_delay;
             task->_counter = 0;
         }
     }
